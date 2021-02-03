@@ -1,5 +1,5 @@
 import numpy as np
-from numpy import transpose
+from numpy import transpose, dot
 from numpy.linalg import multi_dot
 
 
@@ -26,12 +26,12 @@ def sample_null_adj_mat(n, alpha):
     return(adj)
 
 
-def sample_alt_adj_matrix_sym(n, K, a, b, exact):
+def sample_alt_adj_matrix_sym(n, K, a, b, exact=True):
     '''
     Function used to sample a symmetric adjacency matrix under the alternative
     hypothesis with K communities. The matrix P is defined with all off-diagonal
     entries equal to b and diagonal entries equal to a. Membership vectors are 
-    sampled from a Dirichlet distribution with equal probability for each class.
+    pure (n/K nodes per class) or sampled i.i.d. from a Multinomial(1/K,...,1/K).
     This allows to create the ideal matrix Omega, which is used to sample A with
     A[i,j]~Bernoulli(Omega[i,j]) for all off-diagonal elements, and A[i,i]=0 for 
     all diagonal elements (no self-edge).
@@ -49,7 +49,44 @@ def sample_alt_adj_matrix_sym(n, K, a, b, exact):
     P = (a-b)*np.identity(K)+b*np.ones(K)
     # Sample membership vectors
     if exact:
-        coms = np.random.permutation(np.array([np.repeat(i,int(n/K)) for i in range(K)]).flatten())
+        #coms = np.random.permutation(np.array([np.repeat(i,int(n/K)) for i in range(K)]).flatten())
+        coms = np.array([np.repeat(i,int(n/K)) for i in range(K)]).flatten()
+        pi_mat = np.array([np.eye(1,K,i)[0] for i in coms])
+    else:
+        pi_mat = np.random.multinomial(1, [1/K]*K, size=n)
+    # Construct Omega
+    Omega = multi_dot([pi_mat, P, transpose(pi_mat)])
+    # Sample adjacency matrix
+    bern_vars = np.random.binomial(n=1, p=Omega)
+    tri = np.triu(bern_vars, k=1)
+    adj = tri+transpose(tri)
+    return(adj)
+
+
+def sample_alt_adj_matrix_rank1(n, K, eta, c, exact=True):
+    '''
+    Function used to sample a symmetric adjacency matrix under the alternative
+    hypothesis with K communities. The rank-1 matrix P is defined as eta*eta^T. 
+    Membership vectors are pure (n/K nodes per class) or sampled i.i.d. from a 
+    Multinomial(1/K,...,1/K). This allows to create the ideal matrix Omega, which is 
+    used to sample A with A[i,j]~Bernoulli(Omega[i,j]) for all off-diagonal 
+    elements, and A[i,i]=0 for all diagonal elements (no self-edge).
+    
+    Args:
+      n: (int) number of nodes
+      K: (int) number of communities
+      eta: (Numpy array) unique eigenvector of P
+      c: (float) nonzero eigenvalue of P
+      exact: (Boolean) if True, then there are exactly n/K pure nodes per community
+    Returns:
+      An nxn adjacency matrix  
+    '''
+    # Construct P
+    P = c*dot(eta,transpose(eta))
+    # Sample membership vectors
+    if exact:
+        #coms = np.random.permutation(np.array([np.repeat(i,int(n/K)) for i in range(K)]).flatten())
+        coms = np.array([np.repeat(i,int(n/K)) for i in range(K)]).flatten()
         pi_mat = np.array([np.eye(1,K,i)[0] for i in coms])
     else:
         pi_mat = np.random.multinomial(1, [1/K]*K, size=n)
@@ -103,13 +140,9 @@ def sample_alt_adj_matrix_sym2(n, K, a, b, c, exact):
 
 def sample_alt_adj_matrix_asym(n, K, a, b):
     '''
-    Function used to sample a symmetric adjacency matrix under the alternative
+    Function used to sample an asymmetric adjacency matrix under the alternative
     hypothesis with K communities. The matrix P is defined with all off-diagonal
-    entries equal to b and diagonal entries equal to a. Membership vectors are 
-    sampled from a Dirichlet distribution with equal probability for each class.
-    This allows to create the ideal matrix Omega, which is used to sample A with
-    A[i,j]~Bernoulli(Omega[i,j]) for all off-diagonal elements, and A[i,i]=0 for 
-    all diagonal elements (no self-edge).
+    entries sampled from Unif[b-e,b+e] where e<<b, and diagonal entries equal to a.     Membership vectors are sampled from a Dirichlet distribution with equal             probability for each class. This allows to create the ideal matrix Omega, which     is used to sample A with A[i,j]~Bernoulli(Omega[i,j]) for all off-diagonal           elements, and A[i,i]=0 for all diagonal elements (no self-edge).
     
     Args:
       n: (int) number of nodes
