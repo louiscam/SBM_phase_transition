@@ -5,7 +5,7 @@ import scipy.stats as ss
 from scipy.special import comb
 
 
-def degree_test(A, level):
+def degree_test(A, level, two_sided=False):
     '''
     Function used to perform the degree-based chi-squared test for the global
     detection problem. The test statistic is computed as the scaled sum of squared
@@ -18,6 +18,7 @@ def degree_test(A, level):
     Args:
       A: (Numpy array) adjacency matrix
       level: (float) level of the test
+      two_sided: (Boolean) whether the test should be two-sided
       
     Returns:
       A dictionary containing the test statistic, asymptotic p-value and Boolean
@@ -34,10 +35,14 @@ def degree_test(A, level):
     # Compute test statistic
     X_n = np.sum(np.power(d-d_bar,2))/((n-1)*alpha_n*(1-alpha_n))
     T = (X_n-n)/np.sqrt(2*n)
-    # Asymptotic p-value
-    pval = ss.norm.sf(abs(T), loc=0, scale=1)
-    # Test result
-    reject = (pval<=level/2)
+    # Asymptotic p-value and test result
+    if (two_sided==True):
+        pval = ss.norm.sf(abs(T), loc=0, scale=1)
+        reject = (pval<=level/2)
+    else:
+        pval = ss.norm.sf(T, loc=0, scale=1)
+        reject = (pval<=level)
+        
     return({'test_stat': T, 'p_val': pval, 'reject': reject})
 
 
