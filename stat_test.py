@@ -30,6 +30,10 @@ def degree_test(A, level, two_sided=False):
     d = np.sum(A, axis=1, keepdims=True)
     # Edge probability estimate
     alpha_n = np.sum(A)/(n*(n-1))
+    if (alpha_n==0):
+        alpha_n = 2/(n*(n-1))
+    if (alpha_n==1):
+        alpha_n = (n*(n-1)-2)/(n*(n-1))
     # Average degree
     d_bar = (n-1)*alpha_n
     # Compute test statistic
@@ -68,6 +72,10 @@ def ST_test(A, level):
     n = A.shape[0]
     # Edge probability estimate
     alpha_n = np.sum(A)/(n*(n-1))
+    if (alpha_n==0):
+        alpha_n = 2/(n*(n-1))
+    if (alpha_n==1):
+        alpha_n = (n*(n-1)-2)/(n*(n-1))
     # Helper quantities
     B = A-alpha_n
     B2 = dot(B,B)
@@ -104,6 +112,10 @@ def SQ_test(A, level):
     n = A.shape[0]
     # Edge probability estimate
     alpha_n = np.sum(A)/(n*(n-1))
+    if (alpha_n==0):
+        alpha_n = 2/(n*(n-1))
+    if (alpha_n==1):
+        alpha_n = (n*(n-1)-2)/(n*(n-1))
     # Helper quantities
     B = A-alpha_n
     D = np.diag(np.diag(B))
