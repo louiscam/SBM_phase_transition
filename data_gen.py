@@ -42,6 +42,7 @@ def sample_alt_adj_matrix_sym(n, K, a, b, exact=True):
       a: (float) edge probability within a community
       b: (float) edge probability between distinct communities
       exact: (Boolean) if True, then there are exactly n/K pure nodes per community
+    
     Returns:
       An nxn adjacency matrix  
     '''
@@ -79,6 +80,7 @@ def sample_alt_adj_matrix_rank1(n, K, eta, c, exact=True):
       eta: (Numpy array) unique eigenvector of P
       c: (float) nonzero eigenvalue of P
       exact: (Boolean) if True, then there are exactly n/K pure nodes per community
+    
     Returns:
       An nxn adjacency matrix  
     '''
@@ -117,6 +119,7 @@ def sample_alt_adj_matrix_sym2(n, K, a, b, c, exact):
       b: (float) edge probability between first group of communities
       c: (float) edge probability between second group of communities
       exact: (Boolean) if True, then there are exactly n/K pure nodes per community
+    
     Returns:
       An nxn adjacency matrix  
     '''
@@ -130,6 +133,49 @@ def sample_alt_adj_matrix_sym2(n, K, a, b, c, exact):
         pi_mat = np.array([np.eye(1,K,i)[0] for i in coms])
     else:
         pi_mat = np.random.multinomial(1, [1/K]*K, size=n)
+    # Construct Omega
+    Omega = multi_dot([pi_mat, P, transpose(pi_mat)])
+    # Sample adjacency matrix
+    bern_vars = np.random.binomial(n=1, p=Omega)
+    tri = np.triu(bern_vars, k=1)
+    adj = tri+transpose(tri)
+    return(adj)
+
+
+def sample_alt_adj_matrix_asym(n, K, a, b, probs, exact):
+    '''
+    Function used to sample an asymmetric adjacency matrix under the alternative
+    hypothesis with K communities. The matrix P is defined with all off-diagonal
+    entries sampled from Unif[b-e,b+e] where e<<b, and diagonal entries equal to a. 
+    Membership vectors are degenerate, with either the same number of nodes per community 
+    exactly, or nodes memberships are sampled from a multinomial distribution.
+    This allows to create the ideal matrix Omega, which is used to sample A with 
+    A[i,j]~Bernoulli(Omega[i,j]) for all off-diagonal elements, and A[i,i]=0 for all 
+    diagonal elements (no self-edge).
+    
+    Args:
+      n: (int) number of nodes
+      K: (int) number of communities
+      a: (float) edge probability within a community
+      b: (float) edge probability between distinct communities
+      probs: (list) multinomial probabilities of membership (only used if exact=False)
+      exact: (Boolean) if True, then there are exactly n/K pure nodes per community   
+    
+    Returns:
+      An nxn adjacency matrix  
+    '''
+    # Construct P
+    e = min(1-b,b)/6
+    unif_vars = np.random.uniform(low=b-e, high=b+e, size=int(K*(K-1)/2))
+    tri = np.zeros((K,K))
+    tri[np.triu_indices(K,1)] = unif_vars
+    P = tri+transpose(tri)+a*np.identity(K)
+    # Sample membership vectors
+    if exact:
+        coms = np.random.permutation(np.array([np.repeat(i,int(n/K)) for i in range(K)]).flatten())
+        pi_mat = np.array([np.eye(1,K,i)[0] for i in coms])
+    else:
+        pi_mat = np.random.multinomial(1, probs, size=n)
     # Construct Omega
     Omega = multi_dot([pi_mat, P, transpose(pi_mat)])
     # Sample adjacency matrix
@@ -171,7 +217,7 @@ def sample_MMSBM_alt_adj_matrix_sym(n, K, a, b):
     return(adj)
 
 
-def sample_MMSBM_alt_adj_matrix_asym(n, K, a, b):
+def sample_MMSBM_alt_adj_matrix_asym(n, K, a, b, probs):
     '''
     Function used to sample an asymmetric adjacency matrix under the alternative
     hypothesis with K communities. The matrix P is defined with all off-diagonal
@@ -186,6 +232,7 @@ def sample_MMSBM_alt_adj_matrix_asym(n, K, a, b):
       K: (int) number of communities
       a: (float) edge probability within a community
       b: (float) edge probability between distinct communities
+      probs: (list) Dirichlet membership parameters
       
     Returns:
       An nxn adjacency matrix  
@@ -197,7 +244,6 @@ def sample_MMSBM_alt_adj_matrix_asym(n, K, a, b):
     tri[np.triu_indices(K,1)] = unif_vars
     P = tri+transpose(tri)+a*np.identity(K)
     # Sample membership vectors
-    probs = np.random.uniform(0,10,K)
     pi_mat = np.random.dirichlet(alpha = probs, size = n)
     # Construct Omega
     Omega = multi_dot([pi_mat, P, transpose(pi_mat)])
